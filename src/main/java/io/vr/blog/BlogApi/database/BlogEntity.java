@@ -57,4 +57,8 @@ public class BlogEntity {
     public String getId() {
         return id.toString();
     }
+
+    public Date getTime() {
+        return time;
+    }
 }
