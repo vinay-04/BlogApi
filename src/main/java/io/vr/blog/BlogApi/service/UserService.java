@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import io.vr.blog.BlogApi.database.UserEntity;
 import io.vr.blog.BlogApi.model.UserModel;
 import io.vr.blog.BlogApi.repository.UserRepository;
-
+import io.vr.blog.BlogApi.utils.HashUtils;
 import io.vr.blog.BlogApi.utils.JwtUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,7 +23,9 @@ public class UserService {
     }
 
     public UserModel createUser(UserModel user) {
-        UserEntity entity = new UserEntity(user.username, user.password_hash, user.email, user.full_name);
+
+        String password_hash = HashUtils.hash(user.password_hash);
+        UserEntity entity = new UserEntity(user.username, password_hash, user.email, user.full_name);
         userRepository.save(entity);
         return UserModel.fromEntity(entity);
     }
@@ -33,16 +35,16 @@ public class UserService {
         if (entity == null) {
             return null;
         }
-        if (!entity.getPassword_hash().equals(user.password_hash)) {
-            return null;
+        if (HashUtils.verifyHash(user.password_hash, entity.getPassword_hash())) {
+            String token = JwtUtils.generateToken(entity.getId().toString());
+            Cookie cookie = new Cookie("token", token);
+            cookie.setHttpOnly(true);
+            cookie.setPath("/");
+            cookie.setMaxAge(86400);
+            response.addCookie(cookie);
+            return UserModel.fromEntity(entity);
         }
-        String token = JwtUtils.generateToken(entity.getId().toString());
-        Cookie cookie = new Cookie("token", token);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(86400);
-        response.addCookie(cookie);
-        return UserModel.fromEntity(entity);
+        return null;
     }
 
     public UserModel logout(HttpServletResponse response) {
